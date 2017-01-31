@@ -3,12 +3,12 @@
 //! implementation.
 
 use std::io::{Write, Read};
+use std::io::Error as IoError;
+use std::{fmt, result, error};
 use ::SizeLimit;
 
 pub use self::reader::{
     Deserializer,
-    DeserializeResult,
-    DeserializeError,
     InvalidEncoding
 };
 
@@ -24,6 +24,82 @@ use serde_crate as serde;
 
 mod reader;
 mod writer;
+
+pub type Result<T> = result::Result<T, Error>;
+/// An error that can be produced during decoding.
+///
+/// If decoding from a Buffer, assume that the buffer has been left
+/// in an invalid state.
+#[derive(Debug)]
+pub enum Error {
+    /// If the error stems from the reader that is being used
+    /// during decoding, that error will be stored and returned here.
+    IoError(IoError),
+    /// If the bytes in the reader are not decodable because of an invalid
+    /// encoding, this error will be returned.  This error is only possible
+    /// if a stream is corrupted.  A stream produced from `encode` or `encode_into`
+    /// should **never** produce an InvalidEncoding error.
+    InvalidEncoding(InvalidEncoding),
+    /// If decoding a message takes more than the provided size limit, this
+    /// error is returned.
+    SizeLimit,
+    SequenceMustHaveLength,
+    Custom(String)
+}
+
+impl error::Error for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::IoError(ref err) => error::Error::description(err),
+            Error::InvalidEncoding(ref ib) => ib.desc,
+            Error::SizeLimit => "the size limit for decoding has been reached",
+            Error::Custom(ref msg) => msg,
+
+        }
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        match *self {
+            Error::IoError(ref err) => err.cause(),
+            Error::InvalidEncoding(_) => None,
+            Error::SizeLimit => None,
+            Error::Custom(_) => None,
+        }
+    }
+}
+
+impl From<IoError> for Error {
+    fn from(err: IoError) -> Error {
+        Error::IoError(err)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::IoError(ref ioerr) =>
+                write!(fmt, "IoError: {}", ioerr),
+            Error::InvalidEncoding(ref ib) =>
+                write!(fmt, "InvalidEncoding: {}", ib),
+            Error::SizeLimit =>
+                write!(fmt, "SizeLimit"),
+            Error::Custom(ref s) =>
+                s.fmt(fmt),
+        }
+    }
+}
+
+impl serde::de::Error for Error {
+    fn custom<T: fmt::Display>(desc: T) -> Error {
+        Error::Custom(desc.to_string())
+    }
+}
+
+impl serde::ser::Error for Error {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
+        SerializeError::Custom(msg.to_string())
+    }
+} 
 
 /// Serializes an object directly into a `Writer`.
 ///
