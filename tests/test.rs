@@ -9,7 +9,6 @@ extern crate serde;
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::result;
 
 use bincode::refbox::{RefBox, StrBox, SliceBox};
 
