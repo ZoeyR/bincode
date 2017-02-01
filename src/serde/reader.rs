@@ -1,30 +1,11 @@
 use std::io::Read;
-use std::fmt;
 
 use byteorder::{BigEndian, ReadBytesExt};
 use serde_crate as serde;
 use serde_crate::de::value::ValueDeserializer;
 use serde_crate::de::Error as DeError;
 use ::SizeLimit;
-use super::{Result, Error};
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub struct InvalidEncoding {
-    pub desc: &'static str,
-    pub detail: Option<String>,
-}
-
-impl fmt::Display for InvalidEncoding {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            InvalidEncoding { detail: None, desc } =>
-                write!(fmt, "{}", desc),
-            InvalidEncoding { detail: Some(ref detail), desc } =>
-                write!(fmt, "{} ({})", desc, detail)
-        }
-    }
-}
-
+use super::{Result, Error, InvalidEncoding};
 
 /// A Deserializer that reads bytes from a buffer.
 ///

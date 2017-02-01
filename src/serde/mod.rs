@@ -7,14 +7,9 @@ use std::io::Error as IoError;
 use std::{fmt, result, error};
 use ::SizeLimit;
 
-pub use self::reader::{
-    Deserializer,
-    InvalidEncoding
-};
+pub use self::reader::Deserializer;
 
-pub use self::writer::{
-    Serializer,
-};
+pub use self::writer::Serializer;
 
 use self::writer::SizeChecker;
 
@@ -102,6 +97,23 @@ impl serde::ser::Error for Error {
         Error::Custom(msg.to_string())
     }
 } 
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct InvalidEncoding {
+    pub desc: &'static str,
+    pub detail: Option<String>,
+}
+
+impl fmt::Display for InvalidEncoding {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            InvalidEncoding { detail: None, desc } =>
+                write!(fmt, "{}", desc),
+            InvalidEncoding { detail: Some(ref detail), desc } =>
+                write!(fmt, "{} ({})", desc, detail)
+        }
+    }
+}
 
 /// Serializes an object directly into a `Writer`.
 ///
