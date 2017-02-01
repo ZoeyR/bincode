@@ -10,6 +10,7 @@ extern crate serde;
 use std::fmt::Debug;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::result;
 
 use rustc_serialize::{Encodable, Encoder, Decodable, Decoder};
 
@@ -17,7 +18,7 @@ use bincode::{RefBox, StrBox, SliceBox};
 
 use bincode::SizeLimit::{self, Infinite, Bounded};
 use bincode::rustc_serialize::{encode, decode, decode_from, DecodingError};
-use bincode::serde::{serialize, deserialize, deserialize_from, DeserializeError, DeserializeResult};
+use bincode::serde::{serialize, deserialize, deserialize_from, Error, Result};
 
 fn proxy_encode<V>(element: &V, size_limit: SizeLimit) -> Vec<u8>
     where V: Encodable + Decodable + serde::Serialize + serde::Deserialize + PartialEq + Debug + 'static
@@ -249,11 +250,11 @@ fn decoding_errors() {
 
 #[test]
 fn deserializing_errors() {
-    fn isize_invalid_deserialize<T: Debug>(res: DeserializeResult<T>) {
+    fn isize_invalid_deserialize<T: Debug>(res: Result<T>) {
         match res {
-            Err(DeserializeError::InvalidEncoding(_)) => {},
-            Err(DeserializeError::Custom(ref s)) if s.contains("invalid encoding") => {},
-            Err(DeserializeError::Custom(ref s)) if s.contains("invalid value") => {},
+            Err(Error::InvalidEncoding(_)) => {},
+            Err(Error::Custom(ref s)) if s.contains("invalid encoding") => {},
+            Err(Error::Custom(ref s)) if s.contains("invalid value") => {},
             _ => panic!("Expecting InvalidEncoding, got {:?}", res),
         }
     }
@@ -305,7 +306,7 @@ fn char_serialization() {
 #[test]
 fn too_big_char_decode() {
     let encoded = vec![0x41];
-    let decoded: Result<char, _> = decode_from(&mut &encoded[..], Bounded(1));
+    let decoded: Result<char> = decode_from(&mut &encoded[..], Bounded(1));
     assert!(decoded.is_ok());
     assert_eq!(decoded.unwrap(), 'A');
 }
@@ -313,7 +314,7 @@ fn too_big_char_decode() {
 #[test]
 fn too_big_char_deserialize() {
     let serialized = vec![0x41];
-    let deserialized: Result<char, _> = deserialize_from(&mut &serialized[..], Bounded(1));
+    let deserialized: Result<char> = deserialize_from(&mut &serialized[..], Bounded(1));
     assert!(deserialized.is_ok());
     assert_eq!(deserialized.unwrap(), 'A');
 }
@@ -539,7 +540,7 @@ fn test_manual_enum_encoding() {
     }
 
     impl Encodable for Enumeration {
-        fn encode<S: Encoder>(&self, s: &mut S) -> Result<(), S::Error> {
+        fn encode<S: Encoder>(&self, s: &mut S) -> result::Result<(), S::Error> {
             s.emit_enum("Enumeration", |s| {
                 match *self {
                     Enumeration::Variant1 => {
@@ -556,7 +557,7 @@ fn test_manual_enum_encoding() {
     }
 
     impl Decodable for Enumeration {
-        fn decode<D: Decoder>(s: &mut D) -> Result<Self, D::Error> {
+        fn decode<D: Decoder>(s: &mut D) -> result::Result<Self, D::Error> {
             s.read_enum("Enumeration", |s| {
                 s.read_enum_struct_variant(&["Variant1", "Variant2"], |s, num| {
                     match num {
